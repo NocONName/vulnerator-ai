@@ -1,0 +1,218 @@
+name: Security Pipeline
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+  push:
+    branches: [ main, master, develop ]
+  schedule:
+    # Ejecutar escaneo completo semanalmente (lunes a las 2 AM UTC)
+    - cron: '0 2 * * 1'
+
+jobs:
+  # ============================================================================
+  # DETECCIÓN DE SECRETOS CON TRUFFLEHOG
+  # ============================================================================
+  secrets-scan:
+    name: 🔐 TruffleHog - Detección de Secretos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Historial completo para TruffleHog
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  # ============================================================================
+  # ANÁLISIS DE SEGURIDAD CON CODEQL (SAST)
+  # ============================================================================
+  codeql-analysis:
+    name: 🔍 CodeQL - Análisis de Código
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+
+  # ============================================================================
+  # LINTING Y FORMATEO DE CÓDIGO PYTHON
+  # ============================================================================
+  python-lint:
+    name: 🐍 Python Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black pylint bandit
+
+      - name: Lint with flake8
+        run: |
+          # Detener el build si hay errores de sintaxis o nombres indefinidos
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Advertencias por complejidad y longitud de línea
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        continue-on-error: true
+
+      - name: Check code formatting with black
+        run: |
+          black --check --diff .
+        continue-on-error: true
+
+      - name: Security check with bandit
+        run: |
+          bandit -r docker/ agent-ooda/ -ll -f json -o bandit-report.json || true
+          bandit -r docker/ agent-ooda/ -ll
+        continue-on-error: true
+
+      - name: Upload bandit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+
+  # ============================================================================
+  # ESCANEO DE DEPENDENCIAS PYTHON
+  # ============================================================================
+  dependency-scan:
+    name: 📦 Escaneo de Dependencias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install safety
+        run: pip install safety
+
+      - name: Check Kali dependencies
+        run: |
+          pip install -r docker/kali/requirements.txt
+          safety check --json > safety-kali-report.json || true
+          safety check
+        continue-on-error: true
+
+      - name: Check MCP dependencies
+        run: |
+          pip install -r docker/mcp/requirements.txt
+          safety check --json > safety-mcp-report.json || true
+          safety check
+        continue-on-error: true
+
+      - name: Upload safety reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-reports
+          path: |
+            safety-kali-report.json
+            safety-mcp-report.json
+
+  # ============================================================================
+  # ESCANEO DE CONTENEDORES DOCKER
+  # ============================================================================
+  docker-scan:
+    name: 🐳 Trivy - Escaneo de Imágenes Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Kali image
+        run: docker build -t vulnerator-kali:test -f docker/kali/Dockerfile docker/kali
+
+      - name: Run Trivy vulnerability scanner on Kali
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'vulnerator-kali:test'
+          format: 'sarif'
+          output: 'trivy-kali-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-kali-results.sarif'
+          category: 'trivy-kali'
+
+      - name: Build MCP image
+        run: docker build -t vulnerator-mcp:test -f docker/mcp/Dockerfile docker/mcp
+
+      - name: Run Trivy vulnerability scanner on MCP
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'vulnerator-mcp:test'
+          format: 'sarif'
+          output: 'trivy-mcp-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-mcp-results.sarif'
+          category: 'trivy-mcp'
+
+  # ============================================================================
+  # ESCANEO DE ARCHIVOS DE CONFIGURACIÓN Y SECRETOS
+  # ============================================================================
+  config-scan:
+    name: ⚙️ Escaneo de Configuración
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect secrets in config files
+        run: |
+          echo "Verificando archivos de configuración sensibles..."
+          # Verificar que no haya archivos .env con secretos reales
+          if [ -f .env ]; then
+            echo "⚠️ Archivo .env encontrado - verificar que no contenga secretos reales"
+            grep -i "api_key\|password\|secret\|token" .env || echo "✅ No se detectaron patrones de secretos"
+          fi
+
+      - name: Check Docker secrets
+        run: |
+          echo "Verificando secretos en Dockerfiles..."
+          grep -rn "ENV.*\(PASSWORD\|SECRET\|TOKEN\|KEY\)" docker/ || echo "✅ No se encontraron secretos hardcodeados en Dockerfiles"

@@ -1,0 +1,134 @@
+# Pre-commit hooks para ejecutar checks localmente antes de push
+# Instalación: pip install pre-commit && pre-commit install
+#
+# Uso:
+#   - Automático: Se ejecuta en cada git commit
+#   - Manual: pre-commit run --all-files
+#
+# Para saltar hooks (emergencias): git commit --no-verify
+
+repos:
+  # ============================================================================
+  # HOOKS BÁSICOS DE CALIDAD
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      # Evitar commits directos a main
+      - id: no-commit-to-branch
+        args: ['--branch', 'main', '--branch', 'master']
+        
+      # Detectar archivos grandes (>500KB)
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+        
+      # Verificar que archivos terminen con newline
+      - id: end-of-file-fixer
+        
+      # Remover whitespace al final de líneas
+      - id: trailing-whitespace
+        
+      # Verificar sintaxis YAML
+      - id: check-yaml
+        args: ['--unsafe']  # Permite tags de Docker Compose
+        
+      # Verificar sintaxis JSON
+      - id: check-json
+        
+      # Detectar merge conflict markers
+      - id: check-merge-conflict
+        
+      # Verificar que scripts tengan shebang
+      - id: check-shebang-scripts-are-executable
+        
+      # Detectar private keys
+      - id: detect-private-key
+        
+      # Verificar formato de archivos Docker Compose
+      - id: check-yaml
+        files: docker-compose.*\.yml$
+
+  # ============================================================================
+  # SEGURIDAD - DETECCIÓN DE SECRETOS
+  # ============================================================================
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: 
+          - '--baseline'
+          - '.secrets.baseline'
+        exclude: |
+          (?x)^(
+            \.env\.example|
+            \.pre-commit-config\.yaml|
+            package-lock\.json|
+            .*\.lock
+          )$
+
+  # ============================================================================
+  # PYTHON - FORMATEO Y LINTING
+  # ============================================================================
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.13
+        
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        args:
+          - '--max-line-length=127'
+          - '--extend-ignore=E203,W503'
+        exclude: |
+          (?x)^(
+            .*/__pycache__/.*|
+            .*/.venv/.*|
+            .*/.pytest_cache/.*
+          )$
+
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: ['-ll', '-i']  # Low severity, ignore nosec comments
+        files: \.py$
+        exclude: |
+          (?x)^(
+            .*/tests/.*|
+            .*/test_.*\.py
+          )$
+
+  # ============================================================================
+  # DOCKER - LINTING
+  # ============================================================================
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        args: ['--ignore', 'DL3008', '--ignore', 'DL3009']
+
+  # ============================================================================
+  # PYTHON - IMPORTS Y TYPE CHECKING
+  # ============================================================================
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile', 'black']
+
+  # ============================================================================
+  # MARKDOWN Y DOCUMENTACIÓN
+  # ============================================================================
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types_or: [markdown, yaml, json]
+        exclude: |
+          (?x)^(
+            CHANGELOG\.md|
+            .*\.min\.json
+          )$

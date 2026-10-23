@@ -1,0 +1,117 @@
+# Configuración de Dependabot para mantener las dependencias actualizadas
+# y recibir alertas de seguridad automáticas
+
+version: 2
+updates:
+  # ============================================================================
+  # DEPENDENCIAS PYTHON - KALI
+  # ============================================================================
+  - package-ecosystem: "pip"
+    directory: "/docker/kali"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "irraz"
+    labels:
+      - "dependencies"
+      - "python"
+      - "security"
+    commit-message:
+      prefix: "deps(kali)"
+      include: "scope"
+    # Agrupar actualizaciones menores y de parches
+    groups:
+      python-minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ============================================================================
+  # DEPENDENCIAS PYTHON - MCP
+  # ============================================================================
+  - package-ecosystem: "pip"
+    directory: "/docker/mcp"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "irraz"
+    labels:
+      - "dependencies"
+      - "python"
+      - "security"
+    commit-message:
+      prefix: "deps(mcp)"
+      include: "scope"
+    groups:
+      python-minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ============================================================================
+  # DEPENDENCIAS DOCKER
+  # ============================================================================
+  - package-ecosystem: "docker"
+    directory: "/docker/kali"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "03:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "irraz"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+    commit-message:
+      prefix: "deps(docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/docker/mcp"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "03:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "irraz"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+    commit-message:
+      prefix: "deps(docker)"
+
+  # ============================================================================
+  # GITHUB ACTIONS
+  # ============================================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "irraz"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "security"
+    commit-message:
+      prefix: "deps(actions)"
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
