@@ -26,10 +26,8 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
           # Solo archivos versionados, ignorar .env y archivos locales
-          extra_args: --debug --only-verified --no-update
+          extra_args: --only-verified --no-update
 
   # ============================================================================
   # ANÁLISIS DE SEGURIDAD CON CODEQL (SAST)
