@@ -206,9 +206,14 @@ The README is intentionally short. The detail lives under [`docs/`](docs/):
 | Every `.env` variable, AWS creds, local Ollama inference | [`docs/configuration.md`](docs/configuration.md) |
 | Driving a pentest (TUI, MCP client, raw HTTP), the Juice Shop lab, clean restarts | [`docs/usage.md`](docs/usage.md) |
 | The no-guardrails model, opt-in scope-guard, MCP inbound token | [`docs/security.md`](docs/security.md) |
+| **Automatic LLM fallback** (Mistral Large 4 ↔ GLM-5.3 Flash) | [`docs/llm-fallback.md`](docs/llm-fallback.md) |
 | Raw HTTP API reference (`:8642`) | [`docs/http-api.md`](docs/http-api.md) |
 | Architecture, OODA design, findings-store schema | [`docs/design.md`](docs/design.md) |
 | Sample redacted deliverable | [`docs/example-report.md`](docs/example-report.md) |
+
+## Models
+
+Hermes uses **Mistral Large 4** as primary with automatic fallback to **GLM-5.3 Flash** on rate limits or errors. Both models have the same Cyber Index (50%) but different cost/performance trade-offs. See [`docs/llm-fallback.md`](docs/llm-fallback.md) for configuration and comparison.
 
 ## ⚠️ Security & authorized use
 

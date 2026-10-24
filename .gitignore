@@ -58,3 +58,6 @@ backlog.md
 # --- Labs: exploits ejecutables nunca se versionan (SEGURIDAD) ---
 # Los labs documentan vulnerabilidades, pero exploits funcionales no deben estar en el repo.
 labs/**/exploits/
+
+# --- Vulnerable lab (entorno de testing con Workers) ---
+vulnerable-lab/

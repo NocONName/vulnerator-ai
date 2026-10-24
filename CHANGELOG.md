@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Automatic LLM fallback with GLM-5.3 Flash** — Configured native Hermes `fallback_providers` chain with `z-ai/glm-5.3-flash` as automatic fallback. When Mistral Large 4 fails (rate-limit 429, server error 500/502/503, auth failure 401/403), Hermes automatically switches mid-session without losing context. Per-turn failover: each message attempts primary first. Same Cyber Index as Mistral (50%) but 20x cheaper ($0.07/$0.21 vs $1.36/$4.18). Proven in production for end-to-end exploits and 0-day discovery. Top CyberGym score (84.5%). Manual override via `OPENROUTER_MODEL` env var or `hermes config set model.default`. See `docs/modelos-cyberseguridad-openrouter-CORRECTED.md` for full analysis.
+- **Enhanced model documentation** — Updated `agent-ooda/profile/config.yaml` with detailed `fallback_providers` configuration and prompt cache cost warnings, `.env.example` with automatic fallback behavior, and README section on native Hermes fallback mechanism.
+
 ## [1.6.0] - 2026-10-22
 
 ### Added

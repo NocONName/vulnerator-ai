@@ -42,6 +42,36 @@ model:
   # esta vacia/sin definir, el fallback es OpenRouter + este model.default (sin cambios).
   default: "mistralai/mistral-large-4-0"
 
+# --- Fallback automatico (Hermes native) -------------------------------------
+# CADENA DE FALLBACK: si el modelo primario falla (rate-limit 429, server error 500/502/503,
+# auth failure 401/403), Hermes cambia AUTOMATICAMENTE al fallback mid-session sin perder
+# el contexto de la conversacion. El fallback es PER-TURN: cada mensaje nuevo intenta el
+# primario de nuevo; si vuelve a fallar, reactiva el fallback solo para ese turno.
+#
+# VENTAJAS GLM-5.3 Flash vs Mistral Large 4:
+#   - Mismo Cyber Index (50% ambos en Artificial Analysis)
+#   - 20x mas barato: $0.07/M in, $0.21/M out (vs $1.36/$4.18)
+#   - Probado en produccion real: 0-days en navegador, Hugging Face incident response
+#   - Multimodal: acepta imagenes (util para screenshots de targets web)
+#   - Context: 1M tokens
+#   - Safeguards bypasseables (pero en pentest autorizado es ventaja, no problema)
+#   - CyberGym 84.5% (top score), ExploitBench 54.4%, caso real end-to-end exploits
+#
+# DESVENTAJAS:
+#   - NexBench 29/100 (puesto 13): CyberGym no se traduce a pentesting autonomo largo
+#   - Menos data publica de refusal rates en contexto corporativo (Mistral mas probado)
+#
+# ATENCION PROMPT CACHE: cuando el fallback se activa, el nuevo proveedor:modelo NO tiene el
+# prefix cacheado de tu conversacion, asi que el siguiente request re-lee toda la historia a
+# precio completo de input tokens (no 75-90% descuento de cache). Lo mismo aplica cuando el
+# turno termina y se restaura el primario. Es el costo de mantenerse vivo durante un outage.
+#
+# SINTAXIS: lista `fallback_providers` (no singular `fallback_model`). Cada entrada necesita
+# `provider` y `model`. Ver https://hermes-agent.nousresearch.com/docs/user-guide/features/fallback-providers
+fallback_providers:
+  - provider: openrouter
+    model: z-ai/glm-5.3-flash
+
 # --- Primer servidor MCP: la Kali (contenedor `kali`) -----------------------
 # Hermes es CLIENTE de este MCP: ejecuta las tools de pentest CLI DIRECTO sobre la Kali. Es la via
 # principal al target (el navegador va por el segundo MCP, `playwright`, mas abajo). Sintaxis

@@ -107,6 +107,8 @@ services:
         cp -r /opt/profile-src/profile/skins/. "$$DEF/skins/" 2>/dev/null || true
         # (b) inject the API server KEY (secret, not versioned) BEFORE starting.
         hermes config set platforms.api_server.key "$$HERMES_API_SERVER_KEY" >/dev/null
+        # (b1.5) FALLBACK PROVIDERS: apply from config.yaml's fallback_providers section
+        hermes config set fallback_providers '[{"provider": "openrouter", "model": "z-ai/glm-5.3-flash"}]' >/dev/null
         # (b2) LLM PROVIDER SELECTION (opt-in, fallback = OpenRouter):
         if [ -n "$$OLLAMA_BASE_URL" ]; then
           # --- Ollama mode -------------------------------------------------------
