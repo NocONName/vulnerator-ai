@@ -8,6 +8,7 @@ on:
   schedule:
     # Ejecutar escaneo completo semanalmente (lunes a las 2 AM UTC)
     - cron: '0 2 * * 1'
+  workflow_dispatch:  # Permitir ejecución manual
 
 jobs:
   # ============================================================================
@@ -154,44 +155,58 @@ jobs:
   docker-scan:
     name: 🐳 Trivy - Escaneo de Imágenes Docker
     runs-on: ubuntu-latest
+    # Solo ejecutar en schedule, workflow_dispatch, o PRs (no en push directo)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    strategy:
+      matrix:
+        image: [kali, mcp]
     steps:
       - uses: actions/checkout@v7
 
-      - name: Build Kali image
-        run: docker build -t vulnerator-kali:test -f docker/kali/Dockerfile .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Run Trivy vulnerability scanner on Kali
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ matrix.image }}-${{ hashFiles(format('docker/{0}/**', matrix.image)) }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ matrix.image }}-
+            ${{ runner.os }}-buildx-
+
+      - name: Build ${{ matrix.image }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/${{ matrix.image }}/Dockerfile
+          tags: vulnerator-${{ matrix.image }}:test
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Run Trivy vulnerability scanner on ${{ matrix.image }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'vulnerator-kali:test'
+          image-ref: 'vulnerator-${{ matrix.image }}:test'
           format: 'sarif'
-          output: 'trivy-kali-results.sarif'
+          output: 'trivy-${{ matrix.image }}-results.sarif'
           severity: 'CRITICAL,HIGH'
+          timeout: '10m'
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-kali-results.sarif'
-          category: 'trivy-kali'
+          sarif_file: 'trivy-${{ matrix.image }}-results.sarif'
+          category: 'trivy-${{ matrix.image }}'
 
-      - name: Build MCP image
-        run: docker build -t vulnerator-mcp:test -f docker/mcp/Dockerfile .
-
-      - name: Run Trivy vulnerability scanner on MCP
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'vulnerator-mcp:test'
-          format: 'sarif'
-          output: 'trivy-mcp-results.sarif'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+      # Move cache to avoid growing indefinitely
+      - name: Update cache
         if: always()
-        with:
-          sarif_file: 'trivy-mcp-results.sarif'
-          category: 'trivy-mcp'
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
 
   # ============================================================================
   # ESCANEO DE ARCHIVOS DE CONFIGURACIÓN Y SECRETOS
