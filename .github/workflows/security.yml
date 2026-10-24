@@ -28,7 +28,8 @@ jobs:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
-          extra_args: --debug --only-verified
+          # Solo archivos versionados, ignorar .env y archivos locales
+          extra_args: --debug --only-verified --no-update
 
   # ============================================================================
   # ANÁLISIS DE SEGURIDAD CON CODEQL (SAST)
@@ -159,7 +160,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Build Kali image
-        run: docker build -t vulnerator-kali:test -f docker/kali/Dockerfile docker/kali
+        run: docker build -t vulnerator-kali:test -f docker/kali/Dockerfile .
 
       - name: Run Trivy vulnerability scanner on Kali
         uses: aquasecurity/trivy-action@master
@@ -177,7 +178,7 @@ jobs:
           category: 'trivy-kali'
 
       - name: Build MCP image
-        run: docker build -t vulnerator-mcp:test -f docker/mcp/Dockerfile docker/mcp
+        run: docker build -t vulnerator-mcp:test -f docker/mcp/Dockerfile .
 
       - name: Run Trivy vulnerability scanner on MCP
         uses: aquasecurity/trivy-action@master
